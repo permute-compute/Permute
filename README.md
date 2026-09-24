@@ -1,124 +1,82 @@
-# Permute public API (beta)
+# Permute worker
 
-Base URL: your Hub origin (local dev default `http://localhost:3001`, or set `NEXT_PUBLIC_APP_URL`) or orchestrator directly (`ORCHESTRATOR_URL`).
+[![npm version](https://img.shields.io/npm/v/@permute_compute/worker)](https://www.npmjs.com/package/@permute_compute/worker)
 
-**Auth:** `Authorization: Bearer permute_sk_…` (create in Hub → Developers). Legacy keys `net_sk_…` still work.  
-Hub Chat UI uses wallet + `X-Wallet-Address`; **server integrations should use Bearer**.
+Run a **GPU provider node** on [Permute](https://permutecompute.xyz) — Robinhood Chain marketplace for inference and hourly compute.
 
----
+Install the agent on your machine. It **registers** your GPU with Permute, sends **heartbeats**, and accepts **inference jobs** over WebSocket. You earn when the network routes work to you (USDG on-chain as the platform matures).
 
-## Chat (OpenAI-compatible)
-
-```bash
-curl -s "$BASE/api/chat/completions" \
-  -H "Authorization: Bearer $PERMUTE_API_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{"model":"qwen-lite","messages":[{"role":"user","content":"Hello"}]}'
-```
-
-Response includes `net.routing.source` (e.g. `fallback:groq:…`) and `net.job_id`.
+**Platform:** [https://permutecompute.xyz](https://permutecompute.xyz)  
+**Source:** [github.com/permute-compute/Permute](https://github.com/permute-compute/Permute)  
+**Builder API:** [API.md](./API.md)
 
 ---
 
-## Compute API
-
-### `list_gpus`
+## Install
 
 ```bash
-curl -s "$BASE/api/v1/compute/gpus"
+npm install -g @permute_compute/worker
 ```
 
-### `submit_job` (inference)
+Or one-off:
 
 ```bash
-curl -s "$BASE/api/v1/compute/jobs" \
-  -H "Authorization: Bearer $PERMUTE_API_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{"type":"inference","model":"qwen-lite","messages":[{"role":"user","content":"Hello"}]}'
+npx @permute_compute/worker
 ```
-
-### `job_status`
-
-```bash
-curl -s "$BASE/api/v1/compute/jobs/$JOB_ID" \
-  -H "Authorization: Bearer $PERMUTE_API_KEY"
-```
-
-### `cancel_job`
-
-```bash
-curl -s -X POST "$BASE/api/v1/compute/jobs/$JOB_ID/cancel" \
-  -H "Authorization: Bearer $PERMUTE_API_KEY"
-```
-
-### `get_receipt`
-
-```bash
-curl -s "$BASE/api/v1/compute/jobs/$JOB_ID/receipt" \
-  -H "Authorization: Bearer $PERMUTE_API_KEY"
-```
-
-### `rent_gpu` (on-chain escrow + API confirm)
-
-1. Call `GpuRentalEscrow.openRental(rentalId, provider, amount, endsAt)` on Robinhood Chain (USDG `approve` first).  
-   `rentalId = keccak256("permute-rental-" || rental_uuid)`.
-2. POST confirmation:
-
-```bash
-curl -s -X POST "$BASE/api/v1/compute/rentals" \
-  -H "Authorization: Bearer $PERMUTE_API_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{"gpu_id":"YOUR_GPU_ID","hours":1,"rental_id":"YOUR_RENTAL_UUID","tx_hash":"0x…"}'
-```
-
-Orchestrator verifies the `RentalOpened` event, records an active rental, and returns `rental_id` + `job_id`. After `endsAt`, the settler calls `finalizeRental` to pay provider + treasury.
-
-### List your rentals (Hub: Marketplace / Account)
-
-```bash
-curl -s "$BASE/api/v1/compute/rentals" \
-  -H "X-Wallet-Address: 0xYourWallet"
-```
-
-Returns `rental_id`, `gpu_id`, `on_chain_rental_id`, `open_tx_hash`, `ends_at`, and `status` for the connected wallet.
 
 ---
 
-## Provider worker (list on marketplace)
+## Configure
+
+Copy `.env.example` to `.env` in the folder where you run the worker:
 
 ```bash
-cd services/worker
 cp .env.example .env
-# fill WORKER_ID, WORKER_NAME, GPU_MODEL, …
-npm install && npm run start
 ```
 
-Or register once:
+Production defaults (no `.env` required for URL):
 
-```bash
-curl -s -X POST "$BASE/api/workers/register" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "id":"unique-worker-uuid",
-    "name":"friend-4090",
-    "wallet":"0x…",
-    "region":"us-east",
-    "gpu_model":"RTX 4090",
-    "vram_gb":24,
-    "tps_estimate":100,
-    "price_usdg_per_hr":0.28,
-    "models":["qwen-lite"]
-  }'
-```
+- `ORCHESTRATOR_URL` → `https://permutecompute.xyz`
+- WebSocket → `wss://permutecompute.xyz/v1/workers/ws`
 
-Heartbeats required every ~90s — use the worker agent.
+Set **`PROVIDER_WALLET`**, **`WORKER_ID`**, **`WORKER_NAME`**, GPU fields, and **Ollama** (`OLLAMA_URL` / `OLLAMA_MODEL`). See `.env.example`.
 
 ---
 
-## Metrics
+## Run
 
 ```bash
-curl -s "$BASE/api/metrics"
+permute-worker
 ```
 
-Live when orchestrator is up (`source: orchestrator`).
+1. Heartbeats → listing on [Marketplace](https://permutecompute.xyz/hub/marketplace) when online.  
+2. WebSocket → inference jobs when users hit the network route.
+
+```bash
+ollama pull llama3.2   # or your OLLAMA_MODEL
+```
+
+---
+
+## Requirements
+
+- Node.js **20+**
+- [Ollama](https://ollama.com) (recommended) or compatible local chat API
+- Robinhood Chain address for **`PROVIDER_WALLET`**
+
+---
+
+## Troubleshooting
+
+| Symptom | Check |
+|---------|--------|
+| Not listed | `ORCHESTRATOR_URL`, logs, firewall |
+| No jobs | WebSocket / `wss://` in production |
+| Inference errors | Ollama up at `OLLAMA_URL` |
+| No rentals | `PROVIDER_WALLET` set |
+
+---
+
+## License
+
+MIT — see [LICENSE](./LICENSE).

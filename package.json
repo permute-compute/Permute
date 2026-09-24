@@ -1,0 +1,53 @@
+{
+  "name": "@permute_compute/worker",
+  "version": "0.1.0",
+  "description": "Permute GPU provider agent — connect your machine to permutecompute.xyz",
+  "homepage": "https://permutecompute.xyz",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/permute-compute/Permute.git"
+  },
+  "bugs": {
+    "url": "https://github.com/permute-compute/Permute/issues"
+  },
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "bin": {
+    "permute-worker": "./dist/cli.js"
+  },
+  "files": [
+    "dist",
+    ".env.example",
+    "README.md",
+    "API.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "npx tsc && node scripts/add-shebang.cjs",
+    "prepublishOnly": "npm run build",
+    "start": "node dist/cli.js",
+    "dev": "tsx watch src/cli.ts"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.0",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/ws": "^8.5.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.0.0"
+  },
+  "keywords": [
+    "permute",
+    "gpu",
+    "depin",
+    "inference",
+    "ollama",
+    "robinhood-chain",
+    "provider"
+  ]
+}
